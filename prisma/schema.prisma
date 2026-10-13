@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(120)
+  email        String   @unique @db.VarChar(254)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+
+  @@map("users")
+}
+
+model Message {
+  id          String   @id @default(uuid()) @db.Uuid
+  senderId    String   @map("sender_id") @db.Uuid
+  recipientId String   @map("recipient_id") @db.Uuid
+  content     String   @db.VarChar(2000)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  sender    User @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  // Supports both directions of a conversation lookup keyed by time + id.
+  @@index([senderId, recipientId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([recipientId, senderId, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("messages")
+}
